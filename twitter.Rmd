@@ -1,0 +1,164 @@
+---
+title: "Tweeter"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r echo=FALSE, warning=FALSE}
+suppressMessages(library(reshape))
+suppressMessages(library(reshape2))
+suppressMessages(library(ggplot2))
+suppressMessages(library(dplyr))
+suppressMessages(library(maps))
+suppressMessages(library(RColorBrewer))
+suppressMessages(library(GGally))
+suppressMessages(library(scales))
+suppressMessages(library(memisc))
+
+```
+
+
+```{r echo=FALSE, warning=FALSE}
+df <- read.csv('twitter_archive_master.csv', sep = '\t')
+
+```
+
+
+The distribution by retweet counts, after applying a log 10 scale, looks pretty close to a normal distribution with mean around 3200
+
+```{r pressure, echo=FALSE, warning=FALSE}
+ggplot(data = df, aes(x = retweet_count)) +
+  geom_histogram(color = 'black', fill = 'orange') +
+  scale_x_log10(name = 'Number of Retweets')
+```
+
+
+##
+
+It looks like higher ratings do get more average retweets and favorites. 
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(data = df, aes(x = as.factor(rating_numerator), y = retweet_count))+
+  geom_boxplot(color = 'black', fill = 'orange') +
+  ylim(0, 20000) +
+  scale_y_log10()+
+  ylab('Retweet Count') + 
+  xlab('WeRateDog Ratings')
+```
+
+Most ratings are 10, 11, 12 and 13.
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(df, aes(x=rating_numerator)) +
+  geom_histogram(color = 'black', fill = 'orange')+
+  xlab('WeRateDog Ratings')
+```
+
+Not surprisingly, favorite counts and retweet counts have almost perfect positive correlation. After applying a color scale to the rating, it looks like the more highly rated (lighter colors) tweets received higher retweets and favorites.  
+
+```{r echo=FALSE, warning=FALSE}
+ggplot(df, aes(x = favorite_count, y = retweet_count, color = rating_numerator)) +
+  geom_point(alpha = 0.4) +
+  scale_x_log10() +
+  scale_y_log10() +
+  xlab('Favorite Count') +
+  ylab('Retweet Count')
+
+```
+  
+To explore the relationship between dog ratings and retweet/favorite counts, I plotted dog ratings against retweet counts (scaled with log 10) and added a regression line. There is indeed a positive correlation between ratings and retweets, as indicated by the upward sloped regression line.  
+  It
+```{r echo=FALSE, warning=FALSE}
+ggplot(df, aes(x = rating_numerator, y = retweet_count)) +
+  geom_jitter(color = 'orange', alpha = 0.4) +
+  geom_smooth(method = 'lm', color = 'red') + 
+  scale_y_log10(name = 'Count') +
+  xlab('WeRateDogs Rating')
+
+```
+  
+  
+```{r echo=FALSE, warning=FALSE}
+typeof(df$p1_dog)
+```
+  
+I also examined tweets and rating by breeds. Subsetting the pictures identified as dogs (such that we exclude the ones unidentifiable), I rank all the breeds by number of times tweeted. The plot below shows the 12 most tweeted breeds.
+  
+```{r echo=FALSE, warning=FALSE}
+
+df_dog <- subset(df,df$p1_dog == 'True')
+df_dog1 <- df_dog %>% group_by(p1) %>%
+  summarise(median_retweet = median(retweet_count),
+            median_fav = median(favorite_count),
+            mean_retweet = mean(retweet_count),
+            n = n()) %>%
+  arrange(desc(n))
+
+df_dog1$p1 <-factor(df_dog1$p1)
+
+
+top_breeds <- subset(df_dog1, df_dog1$n >= 25)
+top_breeds$p1 <-factor(top_breeds$p1)
+
+df_top_breeds <- subset(df, df$p1 %in%top_breeds$p1)
+df_top_breeds$p1 <-factor(df_top_breeds$p1, levels = top_breeds$p1 )
+
+ggplot(df_top_breeds, aes(x = p1)) +
+  geom_bar(fill = 'orange') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  xlab('Dog Breed') +
+  ylab('Number of Tweets') 
+
+
+```
+  
+There is no noticeable difference in retweets across different breeds of dogs.  
+  
+```{r echo=FALSE, warning=FALSE}
+
+ggplot(df_top_breeds, aes(x=p1, y= retweet_count)) +
+  geom_boxplot(fill = 'orange') +
+  scale_y_log10() + 
+  xlab('Dog Breed') +
+  ylab('Retweet Count') +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+  
+  
+  
+I next examined the retweets and ratings by dog types. It looks like puppos, floofers and doggos have significantly more retweets and higher ratings comparing to puppers and all the other dogs.
+  
+  
+```{r echo=FALSE, warning=FALSE}
+df_type <- df %>% group_by(dog_type) %>%
+  summarise(median_retweet = median(retweet_count),
+            median_fav = median(favorite_count),
+            mean_retweet = mean(retweet_count),
+            mean_rating = mean(rating_numerator),
+            n = n()) %>%
+  arrange(desc(n))
+
+ggplot(df, aes(x=dog_type, y = retweet_count)) +
+  geom_boxplot(fill = 'orange') +
+  scale_y_log10() +
+  ylim(100,10000) +
+  xlab('Dog Type')
+```
+
+```{r echo=FALSE, warning=FALSE}
+df_type
+```
+
